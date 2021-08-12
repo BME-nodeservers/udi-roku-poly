@@ -1,0 +1,9 @@
+<editors>
+	<!-- Boolean -->
+	<editor id="bool">
+		<range uom="2" subset="0,1" />
+	</editor>
+	<editor id="app_id">
+		<range uom="56" min="0" max="9999999" />
+	</editor>
+</editors>

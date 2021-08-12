@@ -1,20 +1,20 @@
 #!/usr/bin/env python3
 """
-Polyglot v2 node server experimental Roku Media Player control.
-Copyright (C) 2019 Robert Paauwe
+Polyglot v3 node server experimental Roku Media Player control.
+Copyright (C) 2019,2021 Robert Paauwe
 """
-import polyinterface
+import udi_interface
 import sys
 from nodes import roku
 
-LOGGER = polyinterface.LOGGER
+LOGGER = udi_interface.LOGGER
 
 if __name__ == "__main__":
     try:
-        polyglot = polyinterface.Interface('Roku')
+        polyglot = udi_interface.Interface([])
         polyglot.start()
-        control = roku.Controller(polyglot)
-        control.runForever()
+        roku.Controller(polyglot)
+        polyglot.runForever()
     except (KeyboardInterrupt, SystemExit):
         sys.exit(0)
         

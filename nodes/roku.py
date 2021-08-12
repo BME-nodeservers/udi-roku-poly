@@ -1,136 +1,131 @@
 #!/usr/bin/env python3
 """
-Polyglot v2 node server experimental Roku Media Player control.
-Copyright (C) 2019 Robert Paauwe
+Polyglot v3 node server experimental Roku Media Player control.
+Copyright (C) 2019,2021 Robert Paauwe
+
+Control class.  
+
+Using the longPoll interval, do device discovery and update the device
+nodes if necessary.
 """
-import polyinterface
+import udi_interface
 import sys
-import time
-import datetime
-import socket
-import math
 import json
-import requests
-import node_funcs
-import write_profile
-from xml.etree import ElementTree
+import time
+import write_profile as profile
+from nodes import roku_node
+from roku_scanner.scanner import Scanner
+from roku_scanner.roku import Roku
 
-LOGGER = polyinterface.LOGGER
+LOGGER = udi_interface.LOGGER
 
-@node_funcs.add_functions_as_methods(node_funcs.functions)
-class Controller(polyinterface.Controller):
-    id = 'Roku'
-    hint = [0,0,0,0]
+class Controller(object):
     def __init__(self, polyglot):
-        super(Controller, self).__init__(polyglot)
-        self.name = 'Roku'
-        self.address = 'r_0'
-        self.primary = self.address
-        self.configured = False
-        self.myConfig = {}
-        self.base_url = "http://"
-        self.port  = 8060
-        self.ip_address = ""
-        self.active = '0'
-        self.nls_map = {}
-        self.nls_map_new = {}
+        self.poly = polyglot
         self.roku_list = {}
+        self.n_queue = []
 
-        self.poly.onConfig(self.process_config)
+        polyglot.subscribe(polyglot.ADDNODEDONE, self.done_queue)
+        polyglot.subscribe(polyglot.POLL, self.poll)
+        polyglot.setCustomParamsDoc()
+        polyglot.ready()
 
-    # Process changes to customParameters
-    def process_config(self, config):
-        LOGGER.error('In process config what do we do here if anything?')
+        self.start()
+
 
     def start(self):
         LOGGER.info('Starting node server')
-
-        self.check_params()
+        # Do initial device discovery on start
         self.discover()
-
         LOGGER.info('Node server started')
 
-    # Find the current active application, return it's address or ''
-    def active_app(self):
-        r = requests.get(self.base_url + "/query/active-app")
-        tree = ElementTree.fromstring(r.content)
-        for child in tree.iter('*'):
-            if child.tag == 'app':
-                if child.text == 'Roku':
-                    return '0'
-                elif 'id' in child.attrib:
-                    return child.attrib['id']
-                else:
-                    return '0'
-        return '0'
+    def poll(self, pollflag):
+        if 'longPoll' in pollflag:
+            self.discover()
 
-    def longPoll(self):
-        self.active = self.active_app()
-        if self.active == '':
-            for node in self.nodes:
-                LOGGER.info(' - Clearing node ' + node)
-                if node != 'r_0' and node != 'controller':
-                    self.nodes[node].setDriver('ST', 0, report=True, force=False)
-        else:
-            self.setDriver('GV0', self.active, report=True, force=True)
-        
-        self.update_status(self.active)
+    def done_queue(self, n_data):
+        self.n_queue.append(n_data['address'])
 
-    def shortPoll(self):
-        pass
+    def wait_for_node_done(self):
+        while len(self.n_queue) == 0:
+            time.sleep(0.2)
+        self.n_queue.pop()
 
-    def query(self):
-        for node in self.nodes:
-            self.nodes[node].reportDrivers()
 
-    def build_and_push_nls(map):
-        LOGGER.info('Create and write NLS file')
+    # Update or create the node associated with device 'dev'
+    def updateNode(self, dev, apps, ip):
+        address = dev['serial-number']
+
+        # if new device, Create entry for it
+        if address not in self.roku_list:
+            LOGGER.info('Found new Roku device {}'.format(dev['user-device-name']))
+            node_id = 'roku_{}'.format(ip.split('.')[3].split(':')[0])
+            self.roku_list[address] = {
+                    'name': dev['user-device-name'],
+                    'ip': ip,
+                    'configured': False,
+                    'apps': None,
+                    'node_id': node_id,
+                    'count': 0
+                    }
+
+        # Update the NLS map for device
+        nls_map = {}
+        cnt = 1
+        for app in apps['app']:
+            if app['@type'] == 'appl':
+                name = app['#text'].replace('&', 'and')
+                nls_map[app['@id']] = (name, cnt)
+                cnt += 1
+        nls_map['0'] = ('Screensaver', 0)
+        self.roku_list[address]['apps'] = nls_map
+        self.roku_list[address]['count'] = cnt
+
+        # write profile files to ISY
+        profile.write_nls(LOGGER, self.roku_list)
+        profile.write_nodedef(LOGGER, self.roku_list)
+        self.poly.updateProfile()
+
+        for rk in self.roku_list:
+            rd = self.roku_list[rk]
+            addr = rk[-6:-1:1]
+            if not rd['configured']:
+                node = roku_node.RokuNode(self.poly, addr, addr, rd['name'], rd['ip'], rd['apps'], rd['node_id'])
+                self.poly.addNode(node)
+                self.wait_for_node_done()
+                rd['configured'] = True
+
+            # refresh the node's application list 
+            node = self.poly.getNode(addr)
+            node.refresh(rd['apps'])
+
 
     # Create the nodes for each device configured and query
     # to get the list of installed applications.  
-    def discover(self, *args, **kwargs):
+    def discover(self):
         LOGGER.info("In Discovery...")
-        if not self.configured:
-            LOGGER.info('Skipping discovery because we aren\'t configured yet.')
-            return
 
-        r = requests.get(self.base_url + "/query/apps")
-        tree = ElementTree.fromstring(r.content)
-        #LOGGER.info(r.content)
-        cnt = 1
-        for child in tree.iter('*'):
-            if (child.tag == 'app'):
-                # Create a node
-                name = child.text.replace('&', 'and')
-                LOGGER.debug(name + ', ' + child.attrib['id'])
-                node = AppNode(self, self.address, child.attrib['id'], name);
-                node.base_url = self.base_url
-                node.status = self.update_status
-                self.addNode(node)
-                time.sleep(.35)
+        scanner = Scanner(discovery_timeout=3)
+        scanner.discover()
+        for roku_dev in scanner.discovered_devices:
+            roku_location = roku_dev.get('LOCATION')
+            roku = Roku(location=roku_location, discovery_data=roku_dev)
+            roku.fetch_data()
+            r = roku.data['device_info']['data']['device-info']
+            apps = roku.data['apps']['data']['apps']
 
-                self.nls_map[child.attrib['id']] = (name, cnt)
-                cnt = cnt + 1
+            LOGGER.info('Discovered {} - {}'.format(r['user-device-name'], r['user-device-location']))
 
-        self.nls_map['0'] = ("Screensaver", 0)
-
-        # self.build_and_push_nls(self.nls_map)
-        write_profile.write_profile(LOGGER, self.nls_map)
-
-        # Query for active app and set appropriate status
-        self.active = self.active_app()
-        for node in self.nodes:
-            if node == 'r_0':  # controller node
-                self.setDriver('GV0', self.active, report=True, force=True)
-                self.setDriver('GV1', self.nls_map[self.active][1], report=True, force=True)
-            elif node == 'controller':
-                LOGGER.info('skip controller node')
+            # Have we already configured this device?
+            sn = r['serial-number']
+            if sn in self.roku_list:
+                # Has the number of apps changed?
+                if len(apps['app']) != self.roku_list[sn]['count']:
+                    self.updateNode(r, apps, roku_location)
             else:
-                if node == self.active:
-                    self.nodes[node].setDriver('ST', 1, report=True, force=False)
-                else:
-                    self.nodes[node].setDriver('ST', 0, report=True, force=False)
+                self.updateNode(r, apps, roku_location)
 
+        LOGGER.info("Discovery finished")
 
     # Delete the node server from Polyglot
     def delete(self):
@@ -139,60 +134,3 @@ class Controller(polyinterface.Controller):
     def stop(self):
         LOGGER.info('Stopping node server')
 
-    def update_profile(self, command):
-        st = self.poly.installprofile()
-        return st
-
-    # Look at what's configured and create the list of
-    # Roku devices.
-    def check_params(self):
-        if 'customParams' in self.polyConfig:
-            for roku_name in self.polyConfig['customParams']:
-                LOGGER.error('found ' + roku_name + ' with ip ' + self.polyConfig['customParams'][roku_name])
-
-        self.removeNoticesAll()
-
-    def remove_notices_all(self, command):
-        self.removeNoticesAll()
-
-    def update_status(self, address):
-        LOGGER.info('Application was launched, ' + address + ' do something')
-        if self.active != '0':
-            node = self.nodes[self.active]
-            node.setDriver('ST', 0, report=True, force=False)
-        self.active = address
-        self.setDriver('GV0', address, report=True, force=True)
-        self.setDriver('GV1', self.nls_map[address][1], report=True, force=True)
-
-    def keypress(self, command):
-        # command['cmd'] holds button name
-        # command['address'] holds the node address that generated it
-        r = requests.post(self.base_url + "/keypress/" + command['cmd']);
-        LOGGER.debug ('requsts: ' + r.reason);
-
-        if command['cmd'] == 'HOME':
-            self.update_status('0')
-
-    commands = {
-            'HOME': keypress,
-            'REV': keypress,
-            'FWD': keypress,
-            'PLAY': keypress,
-            'SELECT': keypress,
-            'LEFT': keypress,
-            'RIGHT': keypress,
-            'DOWN': keypress,
-            'UP': keypress,
-            'BACK': keypress,
-            'REPLAY': keypress,
-            'INFO': keypress,
-            'BACKSPACE': keypress,
-            'SEARCH': keypress,
-            'ENTER': keypress,
-            }
-
-    drivers = [
-            {'driver': 'ST', 'value': 1, 'uom': 2},   # node server status
-            ]
-
-    

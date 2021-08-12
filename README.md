@@ -1,58 +1,56 @@
 
-# roku-polyglot
+# Roku media devices
 
-This is the Roku Poly for the [Universal Devices ISY994i](https://www.universal-devices.com/residential/ISY) [Polyglot interface](http://www.universal-devices.com/developers/polyglot/docs/) with  [Polyglot V2](https://github.com/Einstein42/udi-polyglotv2)
-(c) 2019 Robert Paauwe
-MIT license.
+A node server for [Roku](http://www.roku.com/) media devices. 
 
-This node server is intended to support the [Roku Media Players](http://www.roku.com/).
+This is node server is for [Polyglot V3](https://github.com/UniversalDevices/pg3/) running on a 
+[Polisy](https://www.universal-devices.com/product/polisy/)
+from 
+[Universal Devices Inc.](https://www.universal-devices.com/)
 
-With this node server you can launch applications and send remote command to a single Roku media box. The current application running on the box is available.
+
+With this node server you can launch applications and send remote command to anyRoku device on your network.
 
 ## Installation
 
 1. Backup Your ISY in case of problems!
    * Really, do the backup, please
-2. Go to the Polyglot Store in the UI and install.
-3. Add NodeServer in Polyglot Web
-   * After the install completes, Polyglot will reboot your ISY, you can watch the status in the main polyglot log.
-4. Once your ISY is back up open the Admin Console.
-5. Configure the node server with your station ID.
+2. Go to the Polyglot Store and purchase/install the Roku node server.
+3. After installation, restart the Admin Console.
+
+The node server will automatically start, scan your network for Roku
+devices, and then add a node to the ISY for each Roku found.  This process
+can take 10-15 seconds.
+
+Once running, it will poll each device at the shortPoll interval to 
+determine what application is runnning on that device.  This keeps the
+device status in the ISY up-to-date.  The node server will also re-scan
+the network every longPoll interval looking for new devices and for 
+changes in the applications installed on each device. 
+
+### Node substituion variables
+ * sys.node.[address].ST   - Roku device status (True (active), False inactive)
+ * sys.node.[address].GV1  - Current running application name
+ * sys.node.[address].GV2  - Current running application ID
+
 
 ### Node Settings
 The settings for this node are:
 
 #### Short Poll
-   * Not used
+   * How often to poll each device for status (default 5 seconds)
 #### Long Poll
-   * Poll the Roku device for it's current status. Time in seconds.
-
-#### IP Address
-   * The IP Address of the Roku Media box.  Currently, this is limited to supporting a single Roku box.
-
+   * How often to scan the network for device changes (default 60 seconds)
 
 ## Requirements
+1. Polyglot V3.
+2. ISY firmware 5.3.x or later
+3. One or more Roku devices
 
-1. Polyglot V2 itself should be run on Raspian Stretch.
-  To check your version, ```cat /etc/os-release``` and the first line should look like
-  ```PRETTY_NAME="Raspbian GNU/Linux 9 (stretch)"```. It is possible to upgrade from Jessie to
-  Stretch, but I would recommend just re-imaging the SD card.  Some helpful links:
-   * https://www.raspberrypi.org/blog/raspbian-stretch/
-   * https://linuxconfig.org/raspbian-gnu-linux-upgrade-from-jessie-to-raspbian-stretch-9
-2. This has only been tested with ISY 5.0.14 so it is not guaranteed to work with any other version.
-
-# Upgrading
-
-Open the Polyglot web page, go to nodeserver store and click "Update" for "RokuPoly".
-
-For Polyglot 2.0.35, hit "Cancel" in the update window so the profile will not be updated and ISY rebooted.  The install procedure will properly handle this for you.  This will change with 2.0.36, for that version you will always say "No" and let the install procedure handle it for you as well.
-
-Then restart the Roku nodeserver by selecting it in the Polyglot dashboard and select Control -> Restart, then watch the log to make sure everything goes well.
-
-The Roku nodeserver keeps track of the version number and when a profile rebuild is necessary.  The profile/version.txt will contain the WeatherFlow profile_version which is updated in server.json when the profile should be rebuilt.
 
 # Release Notes
-
+- 2.0.0 08/13/2021
+   - Re-write for PG3
 - 0.0.6 03/28/2020
    - Enable polling to get current status of Roku device.
 - 0.0.5 03/27/2020

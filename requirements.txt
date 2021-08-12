@@ -1,2 +1,3 @@
-polyinterface>=2.0.28
-requests>=2.0
+udi_interface>=3.0.11
+roku_scanner>=1.0.4
+requests>=2.26.0
