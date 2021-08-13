@@ -66,14 +66,15 @@ class Controller(object):
                     'configured': False,
                     'apps': None,
                     'node_id': node_id,
-                    'count': 0
+                    'count': 0,
+                    'isTV': True if dev['is-tv'] == 'true' else False
                     }
 
         # Update the NLS map for device
         nls_map = {}
         cnt = 1
         for app in apps['app']:
-            if app['@type'] == 'appl':
+            if app['@type'] == 'appl' or app['@type'] == 'tvin':
                 name = app['#text'].replace('&', 'and')
                 nls_map[app['@id']] = (name, cnt)
                 cnt += 1
@@ -90,7 +91,14 @@ class Controller(object):
             rd = self.roku_list[rk]
             addr = rk[-6:-1:1]
             if not rd['configured']:
-                node = roku_node.RokuNode(self.poly, addr, addr, rd['name'], rd['ip'], rd['apps'], rd['node_id'])
+                LOGGER.error('Is TV = {}'.format(rd['isTV']))
+                if rd['isTV']:
+                    LOGGER.error('Adding Roku TV node {}'.format(addr))
+                    node = roku_node.RokuNodeTV(self.poly, addr, addr, rd['name'], rd['ip'], rd['apps'], rd['node_id'])
+                else:
+                    LOGGER.error('Adding Roku node {}'.format(addr))
+                    node = roku_node.RokuNode(self.poly, addr, addr, rd['name'], rd['ip'], rd['apps'], rd['node_id'])
+
                 self.poly.addNode(node)
                 self.wait_for_node_done()
                 rd['configured'] = True

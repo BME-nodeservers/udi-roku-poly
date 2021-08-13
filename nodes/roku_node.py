@@ -112,3 +112,73 @@ class RokuNode(udi_interface.Node):
             ]
 
     
+class RokuNodeTV(RokuNode):
+    def __init__(self, polyglot, primary, address, name, ip, apps, node_id):
+        self.id = node_id
+        self.poly = polyglot
+        self.ip = ip
+        self.apps = apps
+
+        super(RokuNode, self).__init__(polyglot, primary, address, name)
+
+        polyglot.subscribe(polyglot.POLL, self.poll)
+        polyglot.subscribe(polyglot.START, self.start, address)
+        polyglot.subscribe(polyglot.STOP, self.stop)
+
+    def remote(self, command):
+        LOGGER.info('TV:: Send Remote button ' + command['address'])
+        url = self.ip + 'keypress/' + command['cmd']
+        r = requests.post(url);
+        LOGGER.debug ('requests: ' + r.reason);
+
+        if command['cmd'] == 'HOME':
+            self.update_status('0')
+        #RokuNode.remote(command)
+
+    def launch(self, command):
+        LOGGER.debug('Launch app ' + self.name + "/" + command['value'])
+        LOGGER.debug(command)
+        # need to convert value (count) into app ID.  self.apps[appid] = (name, count)
+        for appid in self.apps:
+            if self.apps[appid][1] == int(command['value']):
+                LOGGER.info('Launching ' + self.apps[appid][0])
+                url = self.ip + 'launch/' + str(appid)
+                r = requests.post(url);
+                self.update_status(appid)
+                return
+
+    commands = {
+            'HOME': remote,
+            'REV': remote,
+            'FWD': remote,
+            'PLAY': remote,
+            'SELECT': remote,
+            'LEFT': remote,
+            'RIGHT': remote,
+            'DOWN': remote,
+            'UP': remote,
+            'BACK': remote,
+            'REPLAY': remote,
+            'INFO': remote,
+            'BACKSPACE': remote,
+            'SEARCH': remote,
+            'ENTER': remote,
+            'VOLUP': remote,
+            'VOLDOWN': remote,
+            'CHNLUP': remote,
+            'CHNLDOWN': remote,
+            'MUTE': remote,
+            'OFF': remote,
+            'TUNER': remote,
+            'HDMI1': remote,
+            'HDMI2': remote,
+            'HDMI3': remote,
+            'HDMI4': remote,
+            'AV': remote,
+            'LAUNCH': launch
+            }
+    drivers = [
+            {'driver': 'ST', 'value': 0, 'uom': 2},    # Active or not
+            {'driver': 'GV1', 'value': 0, 'uom': 25},  # Current  application
+            {'driver': 'GV2', 'value': 1, 'uom': 56},  # Current application id
+            ]

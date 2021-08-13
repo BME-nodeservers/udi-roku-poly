@@ -28,6 +28,11 @@ device status in the ISY up-to-date.  The node server will also re-scan
 the network every longPoll interval looking for new devices and for 
 changes in the applications installed on each device. 
 
+The ROKU firmware has a bug where it fails to update it's reported IP address
+if the IP address changes while it is running (I.E. set via dhcp). When this 
+happens, the node server will attempt to connect using this wrong IP address
+and fail.  Re-booting the Roku device resolves the issue.
+
 ### Node substituion variables
  * sys.node.[address].ST   - Roku device status (True (active), False inactive)
  * sys.node.[address].GV1  - Current running application name
