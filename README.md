@@ -54,6 +54,8 @@ The settings for this node are:
 
 
 # Release Notes
+- 2.0.1 05/10/2022
+   - node address need to be lower case.  Some devices now have uppercase letters in serial number
 - 2.0.0 08/13/2021
    - Re-write for PG3
 - 0.0.6 03/28/2020
