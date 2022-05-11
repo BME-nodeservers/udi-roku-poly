@@ -89,7 +89,7 @@ class Controller(object):
 
         for rk in self.roku_list:
             rd = self.roku_list[rk]
-            addr = rk[-6:-1:1]
+            addr = rk[-6:-1:1].lower()
             if not rd['configured']:
                 LOGGER.error('Is TV = {}'.format(rd['isTV']))
                 if rd['isTV']:
