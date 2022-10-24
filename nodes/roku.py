@@ -60,8 +60,9 @@ class Controller(object):
         if address not in self.roku_list:
             LOGGER.info('Found new Roku device {}'.format(dev['user-device-name']))
             node_id = 'roku_{}'.format(ip.split('.')[3].split(':')[0])
+            name = self.poly.getValidName(dev['user-device-name'])
             self.roku_list[address] = {
-                    'name': dev['user-device-name'],
+                    'name': name,
                     'ip': ip,
                     'configured': False,
                     'apps': None,
