@@ -117,22 +117,28 @@ class Controller(object):
         scanner = Scanner(discovery_timeout=3)
         scanner.discover()
         for roku_dev in scanner.discovered_devices:
-            roku_location = roku_dev.get('LOCATION')
-            roku = Roku(location=roku_location, discovery_data=roku_dev)
-            roku.fetch_data()
-            r = roku.data['device_info']['data']['device-info']
-            apps = roku.data['apps']['data']['apps']
+            try:
+                roku_location = roku_dev.get('LOCATION')
+                roku = Roku(location=roku_location, discovery_data=roku_dev)
+                LOGGER.debug('roko = {}'.format(roku))
+                roku.fetch_data()
+                r = roku.data['device_info']['data']['device-info']
+                apps = roku.data['apps']['data']['apps']
 
-            LOGGER.info('Discovered {} - {}'.format(r['user-device-name'], r['user-device-location']))
+                LOGGER.info('Discovered {} - {}'.format(r['user-device-name'], r['user-device-location']))
 
-            # Have we already configured this device?
-            sn = r['serial-number']
-            if sn in self.roku_list:
-                # Has the number of apps changed?
-                if len(apps['app']) != self.roku_list[sn]['count']:
+                # Have we already configured this device?
+                sn = r['serial-number']
+                if sn in self.roku_list:
+                    # Has the number of apps changed?
+                    if len(apps['app']) != self.roku_list[sn]['count']:
+                        self.updateNode(r, apps, roku_location)
+                else:
                     self.updateNode(r, apps, roku_location)
-            else:
-                self.updateNode(r, apps, roku_location)
+            except ex as Exception:
+                LOGGER.error('Discovery failed for {}: {}'.format(roku_location, ex))
+                LOGGER.error('device info: {}'.format(roku_dev))
+
 
         LOGGER.info("Discovery finished")
 
