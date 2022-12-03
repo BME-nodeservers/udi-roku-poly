@@ -119,8 +119,9 @@ class Controller(object):
         for roku_dev in scanner.discovered_devices:
             try:
                 roku_location = roku_dev.get('LOCATION')
+                LOGGER.debug('Processing {}'.format(roku_location))
+                LOGGER.debug('roku_dev = {}'.format(roku_dev))
                 roku = Roku(location=roku_location, discovery_data=roku_dev)
-                LOGGER.debug('roko = {}'.format(roku))
                 roku.fetch_data()
                 r = roku.data['device_info']['data']['device-info']
                 apps = roku.data['apps']['data']['apps']
@@ -135,9 +136,8 @@ class Controller(object):
                         self.updateNode(r, apps, roku_location)
                 else:
                     self.updateNode(r, apps, roku_location)
-            except ex as Exception:
+            except Exception as ex:
                 LOGGER.error('Discovery failed for {}: {}'.format(roku_location, ex))
-                LOGGER.error('device info: {}'.format(roku_dev))
 
 
         LOGGER.info("Discovery finished")
