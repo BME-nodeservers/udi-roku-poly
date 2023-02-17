@@ -41,6 +41,9 @@ class RokuNode(udi_interface.Node):
         self.setDriver('GV2', app_id, report=True, force=True)
         if app_id in self.apps:
             self.setDriver('GV1', self.apps[app_id][1], report=True, force=True)
+        elif app_id == '562859':
+            # new screen saver app id
+            self.setDriver('GV1', self.apps['0'][1], report=True, force=True)
         else:
             LOGGER.error('App id {} is not mapped to an appliction.'.format(app_id))
 
