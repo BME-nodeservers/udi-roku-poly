@@ -12,7 +12,7 @@ LOGGER = udi_interface.LOGGER
 if __name__ == "__main__":
     try:
         polyglot = udi_interface.Interface([])
-        polyglot.start('2.0.4')
+        polyglot.start('2.0.5')
         roku.Controller(polyglot)
         polyglot.runForever()
     except (KeyboardInterrupt, SystemExit):
