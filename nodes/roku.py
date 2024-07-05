@@ -123,6 +123,7 @@ class Controller(object):
                 LOGGER.debug('roku_dev = {}'.format(roku_dev))
                 roku = Roku(location=roku_location, discovery_data=roku_dev)
                 roku.fetch_data()
+                LOGGER.debug('roku_data = {}'.format(roku.data))
                 r = roku.data['device_info']['data']['device-info']
                 apps = roku.data['apps']['data']['apps']
 
